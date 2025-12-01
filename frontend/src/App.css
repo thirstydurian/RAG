@@ -312,3 +312,125 @@ body {
     padding: 1rem;
   }
 }
+
+/* Markdown Styles */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+  margin-top: 0;
+}
+
+.markdown-content p {
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content code {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.message.user .markdown-content code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.markdown-content pre {
+  background: #f4f4f4;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content pre code {
+  background: transparent;
+  padding: 0;
+  color: #333;
+}
+
+.message.user .markdown-content pre {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.message.user .markdown-content pre code {
+  color: white;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 0.75rem;
+  color: #666;
+}
+
+.message.user .markdown-content blockquote {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.markdown-content a {
+  color: #0066cc;
+  text-decoration: underline;
+}
+
+.message.user .markdown-content a {
+  color: white;
+}
+
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: #f9f9f9;
+}
+
+.message.user .markdown-content th,
+.message.user .markdown-content td {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.message.user .markdown-content th {
+  background: rgba(255, 255, 255, 0.1);
+}

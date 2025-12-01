@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   id: string
@@ -98,7 +100,11 @@ function App() {
             messages.map(message => (
               <div key={message.id} className={`message ${message.type}`}>
                 <div className="message-content">
-                  <p>{message.content}</p>
+                  <div className="markdown-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  </div>
                   {message.sources && message.sources.length > 0 && (
                     <div className="sources">
                       <p className="sources-label">📄 참고 페이지:</p>
