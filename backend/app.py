@@ -9,6 +9,7 @@ import numpy as np
 import pickle
 import os
 from dotenv import load_dotenv
+import uvicorn
 
 # 프로젝트 루트 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,6 +72,14 @@ print("=" * 60)
 
 class ChatRequest(BaseModel):
     query: str
+
+class SearchRequest(BaseModel):
+    query: str
+    k: int = 5
+
+class GenerateRequest(BaseModel):
+    query: str
+    selected_indices: list[int]
 
 @app.get("/")
 def root():
@@ -153,6 +162,102 @@ def chat(request: ChatRequest):
             "error": str(e)
         }
 
+@app.post("/search")
+def search(request: SearchRequest):
+    try:
+        print(f"\n검색 요청: {request.query} (k={request.k})")
+        
+        # 1. 벡터 검색
+        query_embedding = embedding_model.encode([request.query])
+        query_embedding = np.array(query_embedding).astype('float32')
+        
+        distances, indices = index.search(query_embedding, request.k)
+        
+        results = []
+        for i, idx in enumerate(indices[0]):
+            # float32를 float로 변환하여 JSON 직렬화 가능하게 함
+            score = float(distances[0][i])
+            doc_idx = int(idx) # int64 -> int
+            
+            results.append({
+                "index": doc_idx,
+                "page": chunks[doc_idx]['page'],
+                "title": chunks[doc_idx]['title'],
+                "content": chunks[doc_idx]['content'],
+                "score": score
+            })
+            
+        return {
+            "success": True,
+            "results": results
+        }
+    except Exception as e:
+        print(f"검색 오류: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.post("/generate")
+def generate(request: GenerateRequest):
+    try:
+        if llm_model is None:
+            return {"success": False, "error": "모델이 로드되지 않았습니다."}
+            
+        print(f"\n생성 요청: {request.query}")
+        print(f"선택된 문서 인덱스: {request.selected_indices}")
+        
+        # 1. 컨텍스트 구성
+        context = ""
+        sources = []
+        
+        for idx in request.selected_indices:
+            # 인덱스 유효성 검사
+            if 0 <= idx < len(chunks):
+                chunk = chunks[idx]
+                context += f"[페이지 {chunk['page']}]\n"
+                context += chunk['content'][:300] + "\n\n"
+                sources.append({
+                    "page": chunk['page'],
+                    "title": chunk['title']
+                })
+        
+        if not context:
+            context = "참고할 문서가 선택되지 않았습니다."
+
+        # 2. 프롬프트 구성
+        prompt = f"""당신은 삼성 세탁기 사용 설명서 전문 상담원입니다.
+아래 선택된 매뉴얼 내용을 바탕으로 질문에 정확하고 친절하게 한국어로 답변하세요.
+
+매뉴얼 내용:
+{context}
+
+질문: {request.query}
+
+답변:"""
+        
+        print("LLM 답변 생성 중...")
+        
+        # 3. LLM 답변 생성
+        response = llm_model(
+            prompt,
+            max_tokens=400,
+            temperature=0.7,
+            top_p=0.9,
+            repeat_penalty=1.1,
+            stop=["질문:", "\n질문", "사용자:"],
+            echo=False
+        )
+        
+        answer = response['choices'][0]['text'].strip()
+        print(f"답변: {answer[:100]}...")
+        
+        return {
+            "success": True,
+            "answer": answer,
+            "sources": sources
+        }
+        
+    except Exception as e:
+        print(f"생성 오류: {e}")
+        return {"success": False, "error": str(e)}
+
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

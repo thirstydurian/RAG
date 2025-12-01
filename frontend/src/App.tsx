@@ -3,11 +3,21 @@ import './App.css'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+interface SearchResult {
+  index: number
+  page: number
+  title: string
+  content: string
+  score: number
+  selected?: boolean
+}
+
 interface Message {
   id: string
-  type: 'user' | 'assistant'
+  type: 'user' | 'assistant' | 'system'
   content: string
   sources?: Array<{ page: number; title: string }>
+  searchResults?: SearchResult[]
   timestamp: Date
 }
 
@@ -27,6 +37,73 @@ function App() {
     scrollToBottom()
   }, [messages])
 
+  const handleSearch = async (query: string) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, k: 5 }),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        const systemMessage: Message = {
+          id: Date.now().toString(),
+          type: 'system',
+          content: '답변에 참고할 문서를 선택해주세요.',
+          searchResults: data.results.map((r: SearchResult) => ({ ...r, selected: true })),
+          timestamp: new Date(),
+        }
+        setMessages(prev => [...prev, systemMessage])
+      } else {
+        setError(data.error || '검색 실패')
+      }
+    } catch (err) {
+      setError('서버 연결 실패')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGenerate = async (query: string, selectedIndices: number[]) => {
+    setLoading(true)
+    setError(null)
+
+    // 시스템 메시지(선택창) 제거 또는 완료 상태로 변경하는 로직이 필요할 수 있음
+    // 여기서는 간단히 답변 생성 요청만 보냄
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, selected_indices: selectedIndices }),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          type: 'assistant',
+          content: data.answer,
+          sources: data.sources,
+          timestamp: new Date(),
+        }
+        setMessages(prev => [...prev, assistantMessage])
+      } else {
+        setError(data.error || '생성 실패')
+      }
+    } catch (err) {
+      setError('서버 연결 실패')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
@@ -39,39 +116,42 @@ function App() {
     }
 
     setMessages(prev => [...prev, userMessage])
+    const currentInput = input
     setInput('')
-    setLoading(true)
-    setError(null)
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: input }),
-      })
+    // 1. 검색 요청
+    await handleSearch(currentInput)
+  }
 
-      const data = await response.json()
-
-      if (data.success) {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: data.answer,
-          sources: data.sources,
-          timestamp: new Date(),
+  const toggleSelection = (messageId: string, resultIndex: number) => {
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId && msg.searchResults) {
+        const newResults = [...msg.searchResults]
+        newResults[resultIndex] = {
+          ...newResults[resultIndex],
+          selected: !newResults[resultIndex].selected
         }
-        setMessages(prev => [...prev, assistantMessage])
-      } else {
-        setError(data.error || '응답을 받을 수 없습니다.')
+        return { ...msg, searchResults: newResults }
       }
-    } catch (err) {
-      setError('서버와 연결할 수 없습니다. 백엔드가 실행 중인지 확인하세요.')
-      console.error('Error:', err)
-    } finally {
-      setLoading(false)
-    }
+      return msg
+    }))
+  }
+
+  const submitSelection = (messageId: string) => {
+    const message = messages.find(m => m.id === messageId)
+    if (!message || !message.searchResults) return
+
+    // 해당 시스템 메시지 이전의 사용자 메시지 찾기
+    const msgIndex = messages.findIndex(m => m.id === messageId)
+    const userMessage = messages[msgIndex - 1]
+
+    if (!userMessage) return
+
+    const selectedIndices = message.searchResults
+      .filter(r => r.selected)
+      .map(r => r.index)
+
+    handleGenerate(userMessage.content, selectedIndices)
   }
 
   return (
@@ -100,20 +180,49 @@ function App() {
             messages.map(message => (
               <div key={message.id} className={`message ${message.type}`}>
                 <div className="message-content">
-                  <div className="markdown-content">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="sources">
-                      <p className="sources-label">📄 참고 페이지:</p>
-                      {message.sources.map((source, idx) => (
-                        <span key={idx} className="source-tag">
-                          {source.title} ({source.page}p)
-                        </span>
-                      ))}
+                  {message.type === 'system' && message.searchResults ? (
+                    <div className="search-results">
+                      <p className="system-instruction">🔍 답변에 참고할 문서를 선택하세요:</p>
+                      <div className="results-list">
+                        {message.searchResults.map((result, idx) => (
+                          <div key={idx} className={`result-item ${result.selected ? 'selected' : ''}`}
+                            onClick={() => toggleSelection(message.id, idx)}>
+                            <div className="checkbox">
+                              {result.selected ? '✅' : '⬜'}
+                            </div>
+                            <div className="result-info">
+                              <span className="result-title">{result.title} (p.{result.page})</span>
+                              <p className="result-preview">{result.content.substring(0, 100)}...</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        className="generate-button"
+                        onClick={() => submitSelection(message.id)}
+                        disabled={loading}
+                      >
+                        {loading ? '답변 생성 중...' : '선택한 문서로 답변 생성'}
+                      </button>
                     </div>
+                  ) : (
+                    <>
+                      <div className="markdown-content">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
+                      {message.sources && message.sources.length > 0 && (
+                        <div className="sources">
+                          <p className="sources-label">📄 참고 페이지:</p>
+                          {message.sources.map((source, idx) => (
+                            <span key={idx} className="source-tag">
+                              {source.title} ({source.page}p)
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
