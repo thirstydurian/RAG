@@ -27,6 +27,14 @@ interface DataInfo {
     has_index: boolean
 }
 
+interface Chunk {
+    id: number
+    page: number
+    title: string
+    content: string
+    token_count?: number
+}
+
 function App() {
     const [activeTab, setActiveTab] = useState<'chat' | 'upload' | 'data'>('chat')
     const [messages, setMessages] = useState<Message[]>([])
@@ -41,6 +49,7 @@ function App() {
 
     // Data View State
     const [dataInfo, setDataInfo] = useState<DataInfo | null>(null)
+    const [chunks, setChunks] = useState<Chunk[]>([])
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const API_BASE_URL = 'http://localhost:8000'
@@ -57,6 +66,7 @@ function App() {
     useEffect(() => {
         if (activeTab === 'data') {
             fetchDataInfo()
+            fetchChunks()
         }
     }, [activeTab])
 
@@ -67,6 +77,18 @@ function App() {
             setDataInfo(data)
         } catch (err) {
             console.error("Failed to fetch data info", err)
+        }
+    }
+
+    const fetchChunks = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/chunks`)
+            const data = await response.json()
+            if (data.success) {
+                setChunks(data.chunks)
+            }
+        } catch (err) {
+            console.error("Failed to fetch chunks", err)
         }
     }
 
@@ -372,8 +394,27 @@ function App() {
                                         <p>상태: {dataInfo.has_index ? '✅ 생성됨' : '❌ 없음'}</p>
                                         <p>청크 개수: {dataInfo.chunk_count}개</p>
                                     </div>
-                                    <div className="text-preview">
-                                        <h3>텍스트 미리보기</h3>
+
+                                    <div className="chunk-list-section" style={{ marginTop: '20px' }}>
+                                        <h3>인덱스 상세 (청크 목록)</h3>
+                                        <div className="chunk-list" style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee', padding: '10px' }}>
+                                            {chunks.map(chunk => (
+                                                <div key={chunk.id} className="chunk-item" style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '5px' }}>
+                                                    <div className="chunk-header" style={{ display: 'flex', gap: '10px', marginBottom: '5px', fontWeight: 'bold', color: '#555' }}>
+                                                        <span className="chunk-id">#{chunk.id}</span>
+                                                        <span className="chunk-page">p.{chunk.page}</span>
+                                                        <span className="chunk-title">{chunk.title}</span>
+                                                    </div>
+                                                    <div className="chunk-content" style={{ fontSize: '0.9em', whiteSpace: 'pre-wrap' }}>
+                                                        {chunk.content}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="text-preview" style={{ marginTop: '20px' }}>
+                                        <h3>전체 텍스트 미리보기</h3>
                                         <pre>{dataInfo.text || "데이터가 없습니다."}</pre>
                                     </div>
                                 </div>
