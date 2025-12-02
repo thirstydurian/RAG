@@ -137,7 +137,7 @@ function App() {
             const response = await fetch(`${API_BASE_URL}/search`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, k: 5 }),
+                body: JSON.stringify({ query, k: 10 }),
             })
             const data = await response.json()
 

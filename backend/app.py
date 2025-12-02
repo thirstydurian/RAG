@@ -194,7 +194,7 @@ def chat(request: ChatRequest):
         query_embedding = embedding_model.encode([request.query])
         query_embedding = np.array(query_embedding).astype('float32')
         
-        distances, indices = index.search(query_embedding, 3)
+        distances, indices = index.search(query_embedding, 5)
         
         # 2. 컨텍스트 구성
         context = ""
