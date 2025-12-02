@@ -43,7 +43,8 @@ function App() {
     const [error, setError] = useState<string | null>(null)
 
     // Upload State
-    const [uploadFile, setUploadFile] = useState<File | null>(null)
+    const [uploadFiles, setUploadFiles] = useState<FileList | null>(null)
+    const [textInput, setTextInput] = useState('')
     const [uploading, setUploading] = useState(false)
     const [uploadStatus, setUploadStatus] = useState<string>('')
 
@@ -93,31 +94,43 @@ function App() {
     }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setUploadFile(e.target.files[0])
+        if (e.target.files && e.target.files.length > 0) {
+            setUploadFiles(e.target.files)
         }
     }
 
     const handleUpload = async () => {
-        if (!uploadFile) return
-
+        if (!uploadFiles && !textInput.trim()) {
+            setUploadStatus('파일 또는 텍스트를 입력해주세요.')
+            return
+        }
         setUploading(true)
         setUploadStatus('업로드 및 처리 중... (시간이 걸릴 수 있습니다)')
-
         const formData = new FormData()
-        formData.append('file', uploadFile)
 
+        // Add all files
+        if (uploadFiles) {
+            for (let i = 0; i < uploadFiles.length; i++) {
+                formData.append('files', uploadFiles[i])
+            }
+        }
+
+        // Add text input
+        if (textInput.trim()) {
+            formData.append('text_input', textInput)
+        }
         try {
             const response = await fetch(`${API_BASE_URL}/upload`, {
                 method: 'POST',
                 body: formData,
             })
             const data = await response.json()
-
             if (data.success) {
-                setUploadStatus(`완료! ${data.chunk_count}개의 청크가 생성되었습니다.`)
-                setMessages([]) // Clear chat history on new upload
-                // Optional: Switch to chat or data tab
+                const fileInfo = data.file_count > 0 ? `${data.file_count}개 파일, ` : ''
+                const textInfo = data.has_text_input ? '텍스트 입력, ' : ''
+                setUploadStatus(`완료! ${fileInfo}${textInfo}${data.chunk_count}개의 청크가 생성되었습니다.`)
+                setMessages([])
+                setTextInput('') // Clear text input
             } else {
                 setUploadStatus(`실패: ${data.error}`)
             }
@@ -357,29 +370,64 @@ function App() {
 
                     {activeTab === 'upload' && (
                         <div className="upload-container">
-                            <h2>PDF 파일 업로드</h2>
+                            <h2>문서 업로드</h2>
+
+                            {/* File Upload Section */}
                             <div className="upload-box">
+                                <h3>파일 선택 (PDF, TXT)</h3>
                                 <input
                                     type="file"
-                                    accept=".pdf"
+                                    accept=".pdf,.txt"
+                                    multiple
                                     onChange={handleFileChange}
                                     className="file-input"
                                 />
-                                <button
-                                    onClick={handleUpload}
-                                    disabled={!uploadFile || uploading}
-                                    className="upload-button"
-                                >
-                                    {uploading ? '처리 중...' : '업로드 및 분석 시작'}
-                                </button>
+                                {uploadFiles && (
+                                    <p className="file-count">
+                                        {uploadFiles.length}개 파일 선택됨
+                                    </p>
+                                )}
                             </div>
+
+                            {/* Text Input Section */}
+                            <div className="text-input-box" style={{ marginTop: '20px' }}>
+                                <h3>또는 텍스트 직접 입력</h3>
+                                <textarea
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    placeholder="텍스트를 붙여넣으세요..."
+                                    rows={10}
+                                    className="text-input-area"
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        fontSize: '14px',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '4px'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Upload Button */}
+                            <button
+                                onClick={handleUpload}
+                                disabled={(!uploadFiles && !textInput.trim()) || uploading}
+                                className="upload-button"
+                                style={{ marginTop: '20px' }}
+                            >
+                                {uploading ? '처리 중...' : '업로드 및 분석 시작'}
+                            </button>
+
+                            {/* Status Display */}
                             {uploadStatus && (
                                 <div className={`upload-status ${uploadStatus.includes('실패') ? 'error' : 'success'}`}>
                                     {uploadStatus}
                                 </div>
                             )}
+
                             <div className="upload-info">
                                 <p>⚠️ 주의: 새로운 파일을 업로드하면 이전 대화 내용과 데이터는 초기화됩니다.</p>
+                                <p>💡 팁: 여러 파일을 동시에 선택하거나, 파일과 텍스트를 함께 입력할 수 있습니다.</p>
                             </div>
                         </div>
                     )}
