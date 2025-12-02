@@ -158,15 +158,15 @@ function App() {
         <div className="app">
             <div className="container">
                 <div className="header">
-                    <h1>🤖 세탁기 챗봇</h1>
-                    <p className="subtitle">삼성 세탁기 매뉴얼 전문가</p>
+                    <h1>RAG 챗봇</h1>
+                    <p className="subtitle">당신의 문서 전문가</p>
                 </div>
 
                 <div className="chat-window">
                     {messages.length === 0 ? (
                         <div className="welcome">
                             <h2>안녕하세요!</h2>
-                            <p>세탁기에 대한 궁금한 점을 물어봐주세요.</p>
+                            <p>첨부한 문서에 대해 궁금한 점을 물어봐주세요.</p>
                             <div className="sample-questions">
                                 <p className="sample-label">예시 질문:</p>
                                 <ul>
