@@ -9,8 +9,19 @@ def extract_text_from_pdf(pdf_path):
     def clean_text(text):
         if not text:
             return ""
+        # Remove (cid:숫자) patterns
         text = re.sub(r'\(cid:\d+\)', '', text)
+        # Remove UUnnttiittlleedd patterns
         text = re.sub(r'UUnnttiittlleedd.*', '', text)
+        
+        # Remove consecutive duplicate characters (e.g., "경경경" -> "경")
+        # This pattern matches any character repeated 3 or more times consecutively
+        def deduplicate_chars(match):
+            return match.group(1)
+        
+        # Pattern: captures a character and matches if it repeats 2+ more times
+        text = re.sub(r'(.)\1{2,}', deduplicate_chars, text)
+        
         return text
 
     full_text = ""
