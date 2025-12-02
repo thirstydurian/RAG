@@ -50,6 +50,20 @@ def extract_text_from_pdf(pdf_path):
             
     return full_text, pages_content
 
+def extract_text_from_txt(txt_path):
+    """TXT 파일에서 텍스트 추출"""
+    with open(txt_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+    
+    # 페이지 개념이 없으므로 전체를 1페이지로 처리
+    pages_content = [{
+        'page': 1,
+        'text': text
+    }]
+    
+    return text, pages_content
+
+
 def split_into_sentences(text):
     """
     간단한 문장 분리 (한국어/영어)

@@ -1,5 +1,5 @@
 # app_hf.py
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
@@ -115,28 +115,72 @@ def root():
     }
 
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+async def upload_pdf(
+    files: list[UploadFile] = File(...),
+    text_input: str = Form(None)
+):
     global index, chunks, current_pdf_text
     
     try:
-        # 파일 저장
         upload_dir = os.path.join(PROJECT_ROOT, 'data', 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, file.filename)
         
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        all_texts = []
+        all_pages_content = []
+        processed_files = []
+        
+        # Process uploaded files
+        for file in files:
+            if not file.filename:
+                continue
+                
+            file_path = os.path.join(upload_dir, file.filename)
             
-        print(f"파일 업로드 완료: {file.filename}")
+            # Save file
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            print(f"파일 업로드 완료: {file.filename}")
+            
+            # Extract text based on file type
+            if file.filename.lower().endswith('.pdf'):
+                print(f"PDF 텍스트 추출 중: {file.filename}")
+                text, pages = rag_pipeline.extract_text_from_pdf(file_path)
+                all_texts.append(text)
+                all_pages_content.extend(pages)
+                processed_files.append(file.filename)
+            elif file.filename.lower().endswith('.txt'):
+                print(f"TXT 파일 읽기 중: {file.filename}")
+                text, pages = rag_pipeline.extract_text_from_txt(file_path)
+                all_texts.append(text)
+                all_pages_content.extend(pages)
+                processed_files.append(file.filename)
+            else:
+                print(f"지원하지 않는 파일 형식: {file.filename}")
         
-        # 1. 텍스트 추출
-        print("텍스트 추출 중...")
-        full_text, pages_content = rag_pipeline.extract_text_from_pdf(file_path)
-        current_pdf_text = full_text
+        # Add text input if provided
+        if text_input and text_input.strip():
+            print("직접 입력된 텍스트 추가 중...")
+            all_texts.append(text_input)
+            all_pages_content.append({
+                'page': len(all_pages_content) + 1,
+                'text': text_input
+            })
+        
+        # Check if we have any content
+        if not all_texts:
+            return {
+                "success": False,
+                "error": "처리할 파일이나 텍스트가 없습니다."
+            }
+        
+        # Combine all texts
+        combined_text = "\n\n=== 문서 구분 ===\n\n".join(all_texts)
+        current_pdf_text = combined_text
         
         # 2. 청킹
         print("청킹 중...")
-        new_chunks = rag_pipeline.chunk_text(pages_content, embedding_model)
+        new_chunks = rag_pipeline.chunk_text(all_pages_content, embedding_model)
         
         # 3. 인덱싱
         print("인덱싱 중...")
@@ -148,10 +192,12 @@ async def upload_pdf(file: UploadFile = File(...)):
         
         return {
             "success": True,
-            "message": "PDF 처리 완료",
-            "filename": file.filename,
+            "message": "문서 처리 완료",
+            "file_count": len(processed_files),
+            "files": processed_files,
+            "has_text_input": bool(text_input and text_input.strip()),
             "chunk_count": len(chunks),
-            "text_preview": full_text[:1000] + "..." if len(full_text) > 1000 else full_text
+            "text_preview": combined_text[:1000] + "..." if len(combined_text) > 1000 else combined_text
         }
         
     except Exception as e:
