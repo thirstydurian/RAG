@@ -41,15 +41,19 @@ class TripContext(BaseModel):
     additional_data: List[SearchResult] = Field(default_factory=list)
 
     def get_combined_info(self) -> str:
-        """모든 수집된 정보를 문자열로 반환"""
+        """모든 수집된 정보를 문자열로 반환 (출처 포함)"""
         text = "## Scout 정찰 정보\n"
         for item in self.scout_data:
-            text += f"### Q: {item.query}\n{item.content}\n\n"
+            text += f"### Q: {item.query}\n{item.content}\n"
+            if item.sources:
+                text += f"**Sources:**\n" + "\n".join([f"- {s}" for s in item.sources]) + "\n\n"
         
         if self.additional_data:
             text += "## Writer 추가 리서치 정보\n"
             for item in self.additional_data:
-                text += f"### Q: {item.query}\n{item.content}\n\n"
+                text += f"### Q: {item.query}\n{item.content}\n"
+                if item.sources:
+                    text += f"**Sources:**\n" + "\n".join([f"- {s}" for s in item.sources]) + "\n\n"
         return text
 
 # --- 유틸리티 함수 ---
@@ -92,8 +96,8 @@ class ScoutAgent:
         print(f"[{self.name}] 정찰 시작: {ctx.destination}")
         
         queries = [
-            (f"{ctx.destination} 입국 규정 비자 필수 요건", "advanced"),
-            (f"{ctx.destination} 여행 치안 주의사항", "basic"),
+            (f"{ctx.destination} 입국 규정 비자 필수 요건 최신 2024 2025", "advanced"),
+            (f"{ctx.destination} 여행 치안 주의사항 최신", "basic"),
         ]
         if ctx.keywords:
             queries.append((f"{ctx.destination} {ctx.keywords[0]} 추천 명소", "basic"))
@@ -235,6 +239,8 @@ class WriterAgent:
 4. 정보가 없는 항목은 '정보를 찾을 수 없음'이라 적지 말고, 일반적인 팁으로 대체하세요.
 5. **결론** 섹션에는 이 여행지의 매력을 한 줄로 요약하는 문구를 넣으세요.
 6. 마지막에 면책 조항(정보의 시의성 등)을 작은 글씨로 추가하세요.
+7. **출처 표기 (필수):** 본문 내용 중 Tavily 검색 결과의 URL을 활용하여 관련 정보 옆에 링크를 달아주세요. (예: [출처](URL))
+8. **추천 제한:** 특정 숙박업소나 식당을 직접 추천하지 마세요. 대신 예약 플랫폼(Agoda, Booking.com 등)이나 식당 찾는 팁, 추천 지역 등을 안내하세요.
 """
         response = await aclient.messages.create(
             model=SMART_MODEL,
