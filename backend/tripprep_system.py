@@ -250,6 +250,68 @@ class WriterAgent:
         return response.content[0].text
 
 
+class ChecklistAgent:
+    """📋 Checklist Agent: 보고서에서 체크리스트 추출"""
+    
+    def __init__(self):
+        self.name = "Checklist Agent"
+    
+    async def extract_checklist(self, report: str, destination: str) -> List[Dict]:
+        """
+        보고서에서 여행 준비 체크리스트 추출
+        
+        Returns:
+            List[Dict]: [{"task": "...", "deadline": "...", "category": "..."}]
+        """
+        print(f"[{self.name}] 체크리스트 추출 시작")
+        
+        prompt = f"""
+당신은 여행 준비 전문가입니다. 아래 '{destination}' 여행 보고서를 분석하여 여행 준비 체크리스트를 생성하세요.
+
+[여행 보고서]
+{report}
+
+[지시사항]
+1. 보고서 내용을 바탕으로 여행 전 준비해야 할 항목들을 추출하세요.
+2. 각 항목에는 다음 정보를 포함하세요:
+   - task: 해야 할 일 (구체적으로)
+   - deadline: 마감 시기 (예: "출발 2주 전", "출발 3일 전", "출발 당일")
+   - category: 카테고리 (예: "서류", "예약", "준비물", "금융", "통신", "건강")
+3. 중요도 순으로 정렬하세요.
+4. 최소 10개, 최대 20개 항목을 생성하세요.
+5. 출력 형식: JSON 배열
+   [
+     {{"task": "여권 유효기간 확인 (6개월 이상)", "deadline": "출발 2개월 전", "category": "서류"}},
+     {{"task": "항공권 예약", "deadline": "출발 1개월 전", "category": "예약"}}
+   ]
+
+**중요**: 반드시 유효한 JSON 형식으로만 출력하세요. 다른 설명은 포함하지 마세요.
+"""
+        
+        response = await aclient.messages.create(
+            model=FAST_MODEL,
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        content = response.content[0].text.strip()
+        
+        try:
+            # JSON 파싱
+            cleaned_json = content.replace("```json", "").replace("```", "").strip()
+            checklist = json.loads(cleaned_json)
+            
+            if not isinstance(checklist, list):
+                return []
+            
+            print(f"[{self.name}] 체크리스트 추출 완료: {len(checklist)}개 항목")
+            return checklist
+            
+        except Exception as e:
+            print(f"[{self.name}] JSON 파싱 오류: {e}")
+            return []
+
+
 # --- 통합 시스템 클래스 ---
 
 class TripPrepSystem:
@@ -259,6 +321,7 @@ class TripPrepSystem:
         self.scout = ScoutAgent()
         self.architect = ArchitectAgent()
         self.writer = WriterAgent()
+        self.checklist = ChecklistAgent()
         
         if not ANTHROPIC_API_KEY or not TAVILY_API_KEY:
             print("⚠️ Warning: API Key가 설정되지 않았습니다. .env 파일을 확인하세요.")
