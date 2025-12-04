@@ -72,8 +72,8 @@ async def create_checklist(request: NotionChecklistRequest):
         if not checklist_items:
             raise HTTPException(status_code=500, detail="체크리스트 추출 실패")
         
-        # Notion에 생성
-        success = create_checklist_in_notion(checklist_items)
+        # Notion에 생성 (destination 전달)
+        success = create_checklist_in_notion(checklist_items, request.destination)
         
         return {
             "success": success, 

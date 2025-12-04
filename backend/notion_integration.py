@@ -74,22 +74,13 @@ def parse_markdown_to_rich_text(text: str) -> List[Dict]:
 
 def send_report_to_notion(report_content: str, destination: str) -> bool:
     """
-    여행 보고서를 Notion 페이지에 전송
+    여행 보고서를 Notion 페이지의 하위 페이지로 생성
     """
     if not notion or not NOTION_REPORT_PAGE_ID:
         raise ValueError("Notion API가 설정되지 않았습니다.")
     
     try:
         blocks = []
-        
-        # 제목 추가
-        blocks.append({
-            "object": "block",
-            "type": "heading_1",
-            "heading_1": {
-                "rich_text": [{"type": "text", "text": {"content": f"🌍 {destination} 여행 보고서"}}]
-            }
-        })
         
         # 보고서 내용을 줄 단위로 파싱
         lines = report_content.split('\n')
@@ -194,13 +185,34 @@ def send_report_to_notion(report_content: str, destination: str) -> bool:
                         }
                     })
         
-        # Notion 페이지에 블록 추가 (100개씩 나눠서 전송)
-        for i in range(0, len(blocks), 100):
-            chunk = blocks[i:i+100]
-            notion.blocks.children.append(
-                block_id=NOTION_REPORT_PAGE_ID,
-                children=chunk
-            )
+        # 새로운 하위 페이지 생성
+        from datetime import datetime
+        page_title = f"🌍 {destination} 여행 보고서 - {datetime.now().strftime('%Y.%m.%d')}"
+        
+        new_page = notion.pages.create(
+            parent={"page_id": NOTION_REPORT_PAGE_ID},
+            properties={
+                "title": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": page_title
+                            }
+                        }
+                    ]
+                }
+            },
+            children=blocks[:100]  # 처음 100개 블록
+        )
+        
+        # 나머지 블록 추가 (100개씩)
+        if len(blocks) > 100:
+            for i in range(100, len(blocks), 100):
+                chunk = blocks[i:i+100]
+                notion.blocks.children.append(
+                    block_id=new_page["id"],
+                    children=chunk
+                )
         
         return True
         
@@ -211,27 +223,18 @@ def send_report_to_notion(report_content: str, destination: str) -> bool:
         raise
 
 
-def create_checklist_in_notion(checklist_items: List[Dict]) -> bool:
+def create_checklist_in_notion(checklist_items: List[Dict], destination: str) -> bool:
     """
-    체크리스트 항목을 Notion 페이지에 To-Do 리스트로 생성
+    체크리스트 항목을 Notion 페이지의 하위 페이지에 To-Do 리스트로 생성
     
     checklist_items: [{"task": "...", "deadline": "...", "category": "..."}]
+    destination: 여행지 이름
     """
     if not notion or not NOTION_CHECKLIST_DB_ID:
         raise ValueError("Notion API가 설정되지 않았습니다.")
     
     try:
-        # NOTION_CHECKLIST_DB_ID를 페이지 ID로 사용
         blocks = []
-        
-        # 제목 추가
-        blocks.append({
-            "object": "block",
-            "type": "heading_1",
-            "heading_1": {
-                "rich_text": [{"type": "text", "text": {"content": "✅ 여행 준비 체크리스트"}}]
-            }
-        })
         
         # 카테고리별로 그룹화
         categories = {}
@@ -271,9 +274,23 @@ def create_checklist_in_notion(checklist_items: List[Dict]) -> bool:
                     }
                 })
         
-        # Notion 페이지에 블록 추가
-        notion.blocks.children.append(
-            block_id=NOTION_CHECKLIST_DB_ID,  # 이제 페이지 ID로 사용
+        # 새로운 하위 페이지 생성
+        from datetime import datetime
+        page_title = f"✅ {destination} 체크리스트 - {datetime.now().strftime('%Y.%m.%d')}"
+        
+        new_page = notion.pages.create(
+            parent={"page_id": NOTION_CHECKLIST_DB_ID},
+            properties={
+                "title": {
+                    "title": [
+                        {
+                            "text": {
+                                "content": page_title
+                            }
+                        }
+                    ]
+                }
+            },
             children=blocks
         )
         
