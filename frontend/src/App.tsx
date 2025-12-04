@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import './App.css'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import TripPrep from './components/TripPrep'
 
 interface SearchResult {
     index: number
@@ -36,7 +37,7 @@ interface Chunk {
 }
 
 function App() {
-    const [activeTab, setActiveTab] = useState<'chat' | 'upload' | 'data'>('chat')
+    const [activeTab, setActiveTab] = useState<'chat' | 'upload' | 'data' | 'tripprep'>('chat')
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
@@ -278,6 +279,12 @@ function App() {
                         >
                             데이터 확인
                         </button>
+                        <button
+                            className={`tab-btn ${activeTab === 'tripprep' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('tripprep')}
+                        >
+                            TripPrep
+                        </button>
                     </div>
                 </div>
 
@@ -470,6 +477,10 @@ function App() {
                                 <p>데이터를 불러오는 중...</p>
                             )}
                         </div>
+                    )}
+
+                    {activeTab === 'tripprep' && (
+                        <TripPrep apiBaseUrl={API_BASE_URL} />
                     )}
                 </div>
             </div>

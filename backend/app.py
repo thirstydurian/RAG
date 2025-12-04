@@ -12,6 +12,7 @@ import shutil
 from dotenv import load_dotenv
 import uvicorn
 import rag_pipeline
+from app_tripprep import router as tripprep_router
 
 # 프로젝트 루트 경로 설정
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +30,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# TripPrep 라우터 추가
+app.include_router(tripprep_router)
 
 # 전역 변수
 embedding_model = None
