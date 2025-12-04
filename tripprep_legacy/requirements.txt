@@ -1,0 +1,29 @@
+# TripPrep 의존성 패키지
+
+# 웹 프레임워크
+flask>=2.3.0
+
+# AI & LLM
+anthropic>=0.18.0
+
+# 검색 엔진
+tavily-python>=0.3.0
+
+# 유틸리티
+python-dotenv>=1.0.0
+markdown>=3.5.0
+rich>=13.0.0
+pydantic>=2.0.0
+
+# 비동기 처리 (Python 표준 라이브러리, 별도 설치 불필요)
+# asyncio
+
+# 데이터 처리 (Python 표준 라이브러리, 별도 설치 불필요)
+# json
+# os
+# typing
+
+# 선택적 (개발용)
+# pytest>=7.4.0
+# black>=23.0.0
+# flake8>=6.0.0
