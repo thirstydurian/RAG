@@ -71,7 +71,7 @@ def initialize_models():
 
     # 3. 답변 생성용 LLM (llama.cpp)
     print("3/3 LLM 모델 로딩...")
-    model_path = os.path.join(data_dir, 'models', 'A.X-4.0-Light-Q4_K_M.gguf')
+    model_path = os.path.join(data_dir, 'models', 'downloaded_models', 'A.X-4.0-Light-Q4_K_M.gguf')
 
     if not os.path.exists(model_path):
         print(f"⚠️  모델 파일이 없습니다: {model_path}")

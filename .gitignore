@@ -63,3 +63,4 @@ npm-debug.log
 *.gguf
 
 uploads/
+data/models/downloaded_models/
