@@ -4,6 +4,75 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 
+def add_basic_spacing(text):
+    """
+    띄어쓰기가 없는 한국어 텍스트에 기본적인 띄어쓰기 추가
+    주요 조사와 어미 패턴을 인식하여 단어 경계 추정
+    """
+    if not text or len(text.strip()) == 0:
+        return text
+    
+    # 이미 띄어쓰기가 충분히 있는 경우 (전체 길이의 10% 이상이 공백)
+    space_ratio = text.count(' ') / len(text) if len(text) > 0 else 0
+    if space_ratio > 0.1:
+        return text
+    
+    result = text
+    
+    # 1. 문장 부호 뒤에 띄어쓰기
+    result = re.sub(r'([.!?])([가-힣A-Za-z0-9])', r'\1 \2', result)
+    result = re.sub(r'([,;:])([가-힣A-Za-z0-9])', r'\1 \2', result)
+    
+    # 2. 한국어 조사 및 어미 패턴
+    # 주격 조사: 이, 가
+    result = re.sub(r'([가-힣])([이가])([가-힣])', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3) if m.group(3) not in '가나다라마바사아자차카타파하' else m.group(0), result)
+    
+    # 목적격 조사: 을, 를
+    result = re.sub(r'([가-힣])([을를])([가-힣])', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3), result)
+    
+    # 관형격 조사: 의
+    result = re.sub(r'([가-힣])의([가-힣])', r'\1의 \2', result)
+    
+    # 부사격 조사: 에, 에서, 에게, 로, 으로
+    result = re.sub(r'([가-힣])(에서|에게|에도|에만|로서|으로)([가-힣])', r'\1\2 \3', result)
+    result = re.sub(r'([가-힣])([에로])([가-힣])', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3), result)
+    
+    # 접속 조사: 와, 과, 하고
+    result = re.sub(r'([가-힣])(와|과|하고)([가-힣])', r'\1\2 \3', result)
+    
+    # 보조사: 은, 는, 도, 만, 까지
+    result = re.sub(r'([가-힣])([은는도만])([가-힣])', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3), result)
+    result = re.sub(r'([가-힣])(까지)([가-힣])', r'\1\2 \3', result)
+    
+    # 3. 용언 어미
+    # -다 (종결어미)
+    result = re.sub(r'([가-힣])(다)([\.!?])', r'\1\2\3 ', result)
+    result = re.sub(r'([가-힣])(했다|됐다|였다|이다)([\.!?,])', r'\1\2\3 ', result)
+    
+    # -고, -며, -면서 (연결어미)
+    result = re.sub(r'([가-힣])(고|며|면서|지만|는데)([가-힣])', r'\1\2 \3', result)
+    
+    # -한, -된, -인 (관형사형 어미)
+    result = re.sub(r'([가-힣])(한|된|인|은|를)([가-힣])', lambda m: m.group(1) + m.group(2) + ' ' + m.group(3) if len(m.group(1)) > 1 else m.group(0), result)
+    
+    # 4. 숫자와 한글 사이
+    result = re.sub(r'([0-9])([가-힣])', r'\1 \2', result)
+    result = re.sub(r'([가-힣])([0-9])', r'\1 \2', result)
+    
+    # 5. 영문자와 한글 사이
+    result = re.sub(r'([A-Za-z])([가-힣])', r'\1 \2', result)
+    result = re.sub(r'([가-힣])([A-Za-z])', r'\1 \2', result)
+    
+    # 6. 괄호 처리
+    result = re.sub(r'([가-힣])(<|>|\(|\)|\[|\])([가-힣])', r'\1\2 \3', result)
+    result = re.sub(r'(<|>|\(|\)|\[|\])([가-힣])', r'\1 \2', result)
+    
+    # 연속된 공백 제거
+    result = re.sub(r'\s+', ' ', result)
+    
+    return result.strip()
+
+
 def extract_text_from_pdf(pdf_path):
     """PDF에서 텍스트 추출"""
     def clean_text(text):
@@ -22,7 +91,11 @@ def extract_text_from_pdf(pdf_path):
         # Pattern: captures a character and matches if it repeats 2+ more times
         text = re.sub(r'(.)\1{2,}', deduplicate_chars, text)
         
+        # 자동 띄어쓰기 추가 (비활성화: 규칙 기반 띄어쓰기가 오히려 품질 저하 가능)
+        # text = add_basic_spacing(text)
+        
         return text
+
 
     full_text = ""
     pages_content = []
@@ -67,11 +140,11 @@ def extract_text_from_txt(txt_path):
 def split_into_sentences(text):
     """
     간단한 문장 분리 (한국어/영어)
-    . ! ? 뒤에 공백이나 줄바꿈이 오면 분리
+    . ! ? 뒤에서 분리 (띄어쓰기 없어도 처리 가능)
     """
-    # 문장 종결 부호 뒤에 공백이 있거나 줄바꿈이 있는 경우 분리
-    # 예외 처리가 완벽하진 않지만 기본적인 문장 분리 수행
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+    # 문장 종결 부호 뒤에서 분리 (공백 선택적)
+    # 띄어쓰기가 없는 텍스트도 처리 가능하도록 \s*로 변경
+    sentences = re.split(r'(?<=[.!?])\s*', text)
     return [s.strip() for s in sentences if s.strip()]
 
 def chunk_text(pages_content, tokenizer_model):
