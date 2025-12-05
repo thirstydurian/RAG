@@ -1,12 +1,14 @@
 # RAG 챗봇 (Retrieval-Augmented Generation Chatbot)
 
-PDF 문서를 업로드하여 자동으로 벡터 인덱싱하고, 질문에 대해 관련 문서를 검색하여 AI 기반 답변을 생성하는 RAG 챗봇 시스템입니다.
+PDF/TXT 문서를 업로드하여 자동으로 벡터 인덱싱하고, 질문에 대해 관련 문서를 검색하여 AI 기반 답변을 생성하는 RAG 챗봇 시스템입니다.
 
 ## 주요 기능
 
 ### 🚀 핵심 기능
-- **PDF 업로드 및 자동 처리**: UI에서 PDF를 업로드하면 자동으로 텍스트 추출, 청킹, 벡터 인덱싱 수행
-- **인터랙티브 문서 검색**: 질문 시 Top-10 관련 문서를 검색하여 표시
+- **다중 파일 업로드**: PDF 및 TXT 파일을 동시에 여러 개 업로드 가능
+- **텍스트 직접 입력**: 클립보드에서 복사한 텍스트를 직접 입력하여 처리
+- **자동 문서 처리**: 업로드된 파일을 자동으로 텍스트 추출, 청킹, 벡터 인덱싱 수행
+- **인터랙티브 문서 검색**: 질문 시 Top-K 관련 문서를 검색하여 표시
 - **선택적 컨텍스트 활용**: 검색된 문서 중 원하는 문서만 선택하여 답변 생성
 - **마크다운 렌더링**: AI 답변을 마크다운 형식으로 표시
 - **출처 추적**: 답변에 참고한 문서의 페이지 정보 표시
@@ -14,6 +16,7 @@ PDF 문서를 업로드하여 자동으로 벡터 인덱싱하고, 질문에 대
 
 ### 🎯 특별한 기능
 - **중복 문자 자동 제거**: PDF 추출 시 발생하는 중복 문자 패턴 자동 정리 (예: "경경경제제제" → "경제")
+- **띄어쓰기 없는 텍스트 처리**: 띄어쓰기가 없는 한국어 텍스트도 문장 부호 기준으로 분리하여 처리
 - **토큰 기반 청킹**: 100 토큰 이하로 최적화된 청크 생성
 - **한국어 최적화**: 한국어 임베딩 모델 및 SLM 사용
 
@@ -25,7 +28,7 @@ PDF 문서를 업로드하여 자동으로 벡터 인덱싱하고, 질문에 대
 - **LLM**: A.X-4.0-Light-Q4_K_M.gguf (Gemma-2 기반, llama.cpp)
 - **벡터 검색**: FAISS 1.8.0
 - **PDF 처리**: pdfplumber
-- **Python**: 3.9+
+- **Python**: 3.11+
 
 ### Frontend
 - **프레임워크**: React 19.2.0 + TypeScript
@@ -39,7 +42,7 @@ PDF 문서를 업로드하여 자동으로 벡터 인덱싱하고, 질문에 대
 RAG/
 ├── backend/
 │   ├── app.py              # FastAPI 메인 서버
-│   ├── rag_pipeline.py     # PDF 처리 및 RAG 파이프라인
+│   ├── rag_pipeline.py     # PDF/TXT 처리 및 RAG 파이프라인
 │   ├── requirements.txt    # Python 의존성
 │   └── .env               # 환경 변수 (선택)
 ├── frontend/
@@ -50,8 +53,9 @@ RAG/
 │   └── vite.config.ts     # Vite 설정
 └── data/
     ├── models/            # LLM 모델 파일
-    │   └── A.X-4.0-Light-Q4_K_M.gguf
-    └── uploads/           # 업로드된 PDF 저장 (자동 생성)
+    │   └── downloaded_models/
+    │       └── A.X-4.0-Light-Q4_K_M.gguf
+    └── uploads/           # 업로드된 파일 저장 (자동 생성)
 ```
 
 ## 설치 및 실행
@@ -59,17 +63,17 @@ RAG/
 ### 1. 사전 준비
 
 #### LLM 모델 다운로드
-실행 전 반드시 LLM 모델을 다운로드하여 `data/models/` 경로에 위치시켜야 합니다.
+실행 전 반드시 LLM 모델을 다운로드하여 `data/models/downloaded_models/` 경로에 위치시켜야 합니다.
 
 ```bash
-# data/models 폴더 생성
-mkdir -p data/models
+# data/models/downloaded_models 폴더 생성
+mkdir -p data/models/downloaded_models
 
 # 모델 다운로드 (Hugging Face CLI 사용)
-huggingface-cli download beomi/A.X-4.0-Light-GGUF A.X-4.0-Light-Q4_K_M.gguf --local-dir data/models
+huggingface-cli download beomi/A.X-4.0-Light-GGUF A.X-4.0-Light-Q4_K_M.gguf --local-dir data/models/downloaded_models
 ```
 
-또는 [Hugging Face](https://huggingface.co/beomi/A.X-4.0-Light-GGUF)에서 직접 다운로드하여 `data/models/A.X-4.0-Light-Q4_K_M.gguf`에 저장하세요.
+또는 [Hugging Face](https://huggingface.co/beomi/A.X-4.0-Light-GGUF)에서 직접 다운로드하여 `data/models/downloaded_models/A.X-4.0-Light-Q4_K_M.gguf`에 저장하세요.
 
 ### 2. Backend 설치 및 실행
 
@@ -77,8 +81,9 @@ huggingface-cli download beomi/A.X-4.0-Light-GGUF A.X-4.0-Light-Q4_K_M.gguf --lo
 cd backend
 
 # 가상환경 생성 (권장)
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python -m venv ../.venv
+../.venv/Scripts/activate  # Windows
+# source ../.venv/bin/activate  # macOS/Linux
 
 # 의존성 설치
 pip install -r requirements.txt
@@ -108,19 +113,22 @@ Frontend는 `http://localhost:3000`에서 실행됩니다.
 ### 기본 사용 흐름
 
 1. **서버 시작**
-   - Backend: `python app.py`
-   - Frontend: `npm run dev`
+   - Backend: `cd backend && python app.py`
+   - Frontend: `cd frontend && npm run dev`
 
-2. **PDF 업로드**
+2. **문서 업로드**
    - 브라우저에서 `http://localhost:3000` 접속
    - "PDF 업로드" 탭으로 이동
-   - PDF 파일 선택 후 "업로드 및 분석 시작" 클릭
+   - **방법 1**: PDF/TXT 파일 선택 (다중 선택 가능)
+   - **방법 2**: 텍스트 입력 영역에 직접 텍스트 붙여넣기
+   - **방법 3**: 파일과 텍스트를 함께 사용
+   - "업로드 및 분석 시작" 클릭
    - 처리 완료 메시지 확인 (청크 개수 표시)
 
 3. **질문하기**
    - "채팅" 탭으로 이동
    - 질문 입력 후 전송
-   - Top-10 검색 결과가 표시됨
+   - Top-K 검색 결과가 표시됨
    - 원하는 문서를 선택/해제
    - "선택한 문서로 답변 생성" 클릭
 
@@ -143,14 +151,18 @@ Frontend는 `http://localhost:3000`에서 실행됩니다.
 ```
 
 ### POST `/upload`
-PDF 파일 업로드 및 처리
-- **Request**: `multipart/form-data` (file)
+파일 업로드 및 처리 (다중 파일 + 텍스트 입력 지원)
+- **Request**: `multipart/form-data`
+  - `files`: 업로드할 파일들 (PDF/TXT, 다중 가능)
+  - `text_input`: 직접 입력한 텍스트 (선택)
 - **Response**: 
 ```json
 {
   "success": true,
-  "message": "PDF 처리 완료",
-  "filename": "example.pdf",
+  "message": "문서 처리 완료",
+  "file_count": 2,
+  "files": ["example1.pdf", "example2.txt"],
+  "has_text_input": true,
   "chunk_count": 77,
   "text_preview": "..."
 }
@@ -162,7 +174,7 @@ PDF 파일 업로드 및 처리
 ```json
 {
   "query": "질문 내용",
-  "k": 10
+  "k": 5
 }
 ```
 - **Response**: 
@@ -224,11 +236,13 @@ PDF 파일 업로드 및 처리
 ## 데이터 처리 파이프라인
 
 ```
-PDF 업로드 (UI)
+파일 업로드 (PDF/TXT) + 텍스트 입력 (UI)
     ↓
-텍스트 추출 (pdfplumber)
+텍스트 추출 (pdfplumber / 직접 읽기)
     ↓ clean_text: 중복 문자 제거, 노이즈 제거
-페이지별 텍스트
+페이지별 텍스트 결합
+    ↓
+문장 분리 (띄어쓰기 없어도 문장 부호 기준)
     ↓
 청킹 (토큰 기반, 최대 100 토큰)
     ↓
@@ -240,7 +254,7 @@ FAISS 인덱스 구축
 ```
 
 ### 청킹 알고리즘
-- 문장 단위로 분리
+- 문장 단위로 분리 (띄어쓰기 없어도 `.!?` 기준으로 분리)
 - 토큰 수가 100 이하가 되도록 문장을 그룹화
 - 단일 문장이 100 토큰을 초과하는 경우 그대로 유지
 
@@ -252,11 +266,11 @@ FAISS 인덱스 구축
 ## 주요 설정 값
 
 ### Backend (app.py)
-- **검색 Top-K**: 기본 5 (SearchRequest), 채팅 시 5개 문서 사용
+- **검색 Top-K**: 기본 5
 - **LLM 설정**:
   - `n_ctx`: 2048 (컨텍스트 길이)
-  - `max_tokens`: 400 (답변 최대 길이)
-  - `temperature`: 0.7
+  - `max_tokens`: 600 (답변 최대 길이)
+  - `temperature`: 0.2 (낮을수록 일관된 답변)
   - `top_p`: 0.9
 
 ### Frontend (App.tsx)
@@ -267,23 +281,26 @@ FAISS 인덱스 구축
 
 ### 모델 로딩 실패
 ```
-⚠️ 모델 파일이 없습니다: data/models/A.X-4.0-Light-Q4_K_M.gguf
+⚠️ 모델 파일이 없습니다: data/models/downloaded_models/A.X-4.0-Light-Q4_K_M.gguf
 ```
-→ LLM 모델을 다운로드하여 `data/models/` 경로에 저장하세요.
+→ LLM 모델을 다운로드하여 `data/models/downloaded_models/` 경로에 저장하세요.
 
-### PDF 업로드 실패
+### 파일 업로드 실패
 → `data/uploads/` 폴더가 자동 생성되지 않은 경우 수동으로 생성하세요.
 
 ### CORS 에러
 → Backend의 CORS 설정이 `allow_origins=["*"]`로 되어 있는지 확인하세요.
 
 ### 중복 문자 문제
-→ `rag_pipeline.py`의 `clean_text` 함수가 자동으로 처리합니다. 새 PDF를 업로드하면 적용됩니다.
+→ `rag_pipeline.py`의 `clean_text` 함수가 자동으로 처리합니다. 새 파일을 업로드하면 적용됩니다.
+
+### 띄어쓰기 없는 텍스트
+→ 문장 부호(`.!?`) 기준으로 자동 분리되므로 별도 처리 불필요합니다.
 
 ## 개발 정보
 
 ### 의존성 버전
-- Python: 3.9+
+- Python: 3.11+
 - Node.js: 16+
 - CUDA: 불필요 (CPU 전용)
 
