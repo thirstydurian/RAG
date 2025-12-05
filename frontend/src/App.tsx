@@ -259,7 +259,7 @@ function App() {
         <div className="app">
             <div className="container">
                 <div className="header">
-                    <h1>RAG 챗봇</h1>
+                    <h1>TripPrep</h1>
                     <div className="tabs">
                         <button
                             className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
@@ -283,7 +283,7 @@ function App() {
                             className={`tab-btn ${activeTab === 'tripprep' ? 'active' : ''}`}
                             onClick={() => setActiveTab('tripprep')}
                         >
-                            TripPrep
+                            보고서
                         </button>
                     </div>
                 </div>
