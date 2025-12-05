@@ -72,3 +72,6 @@ backend/app_clovax.py
 # Unused model download scripts
 data/models/code/download_hyperclovax.py
 data/models/code/download_kanana.py
+
+# legacy files
+tripprep_legacy/
