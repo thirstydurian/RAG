@@ -347,7 +347,7 @@ def generate(request: GenerateRequest):
             if 0 <= idx < len(chunks):
                 chunk = chunks[idx]
                 context += f"[페이지 {chunk['page']}]\n"
-                context += chunk['content'][:300] + "\n\n"
+                context += chunk['content'] + "\n\n"  # 전체 내용 사용
                 sources.append({
                     "page": chunk['page'],
                     "title": chunk['title']
@@ -357,7 +357,14 @@ def generate(request: GenerateRequest):
             context = "참고할 문서가 선택되지 않았습니다."
 
         prompt = f"""당신은 문서 전문 상담원입니다.
-아래 선택된 문서 내용을 바탕으로 질문에 정확하고 친절하게 한국어로 답변하세요.
+아래 제공된 문서 내용을 바탕으로 질문에 정확하고 친절하게 한국어로 답변하세요.
+
+**중요 지침:**
+1. 반드시 제공된 문서 내용만을 사용하여 답변하세요.
+2. 문서에 없는 내용은 추측하거나 만들어내지 마세요.
+3. 문서에 해당 정보가 없는 경우 "문서에 해당 정보가 없습니다"라고 답변하세요.
+4. 답변은 구체적이고 명확하게 작성하세요.
+5. 시간 범위를 표시할 때는 물결표(~) 대신 하이픈(-)을 사용하세요 (예: 12:30-14:30).
 
 문서 내용:
 {context}
@@ -368,8 +375,8 @@ def generate(request: GenerateRequest):
         
         response = llm_model(
             prompt,
-            max_tokens=400,
-            temperature=0.7,
+            max_tokens=600,
+            temperature=0.2,
             top_p=0.9,
             repeat_penalty=1.1,
             stop=["질문:", "\n질문", "사용자:"],
@@ -377,6 +384,9 @@ def generate(request: GenerateRequest):
         )
         
         answer = response['choices'][0]['text'].strip()
+
+        # 물결표를 하이픈으로 변환 (마크다운 취소선 방지)
+        answer = answer.replace('~', '-')
         
         return {
             "success": True,
